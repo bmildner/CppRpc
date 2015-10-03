@@ -4,12 +4,13 @@
 #pragma once
 
 #include <sstream>
+#include <type_traits>
 
 #include <boost/archive/text_oarchive.hpp>
 #include <boost/archive/text_iarchive.hpp>
 
 #include <boost/mpl/size.hpp>
-#include <boost/mpl/at.hpp>
+#include <boost/mpl/front.hpp>
 #include <boost/mpl/pop_front.hpp>
 
 #include "cpprpc/Types.h"
@@ -36,21 +37,21 @@ namespace CppRpc
         Buffer SerializeFunctionCall(const Interface& interface, const Name& functionName, Arguments&&... arguments) const
         {
           // check number of arguments (ArgumentTypes vs Arguments)
-          static_assert(boost::mpl::size<ArgumentTypes>::value == sizeof...(arguments), "invalid numer of arguments supplied");
+          static_assert(boost::mpl::size<ArgumentTypes>::value == sizeof...(arguments), "invalid number of arguments supplied");
 
           OStream stream;
           OArchive archive(stream);
 
           Serialize(archive, Dispatcher::FunctionDispatchHeader(interface, functionName));
 
-          SerializeParam(archive, std::forward<Arguments>(arguments)...);
+          SerializeArguments<ArgumentTypes>(archive, std::forward<Arguments>(arguments)...);
 
           auto str = stream.str();
           return Buffer(str.data(), str.data() + str.size());
         }
 
         template <typename ReturnType>
-        ReturnType DeserializeReturnValue(const Buffer& buffer)
+        ReturnType DeserializeReturnValue(const Buffer& buffer) const
         {
           IStream stream(std::string(buffer.begin(), buffer.end()));
           IArchive archive(stream);
@@ -60,15 +61,25 @@ namespace CppRpc
 
       private:
         
-        template <typename First, typename... RemainingArguments>
-        void SerializeParam(OArchive& archive, First&& first, RemainingArguments&&... remainingArguments) const
+        template <typename ArgumentTypes, typename Argument, typename... RemainingArguments>
+        void SerializeArguments(OArchive& archive, Argument&& argument, RemainingArguments&&... remainingArguments) const
         {
-          Serialize(archive, std::forward<First>(first));
-          SerializeParam(archive, std::forward<RemainingArguments>(remainingArguments)...);
+          // check number of arguments (ArgumentTypes vs RemainingArguments)
+          static_assert(boost::mpl::size<ArgumentTypes>::value == (sizeof...(remainingArguments) + 1), "invalid numer of arguments supplied");
+
+          // serialize argument
+          Serialize<boost::mpl::front<ArgumentTypes>::type>(archive, std::forward<Argument>(argument));
+
+          // serialize remaining arguments using recursive call OR terminate recursion by calling 
+          SerializeArguments<boost::mpl::pop_front<ArgumentTypes>::type>(archive, std::forward<RemainingArguments>(remainingArguments)...);
         }
 
-        void SerializeParam(OArchive& /*buffer*/) const
-        {}
+        template <typename ArgumentTypes>
+        void SerializeArguments(OArchive& /*archive*/) const
+        {
+          // all arguments must have been serialized; validate usage as recursion sentinal
+          static_assert(boost::mpl::size<ArgumentTypes>::value == 0, "");
+        }
 
         template <typename T>
         void Serialize(OArchive& archive, T&& data) const
@@ -90,6 +101,7 @@ namespace CppRpc
           }
         };
 
+        // spezialisation of DeserializeHelper for T = void
         template <>
         struct DeserializeHelper<void>
         {
@@ -98,7 +110,7 @@ namespace CppRpc
         };
 
         template <typename T>
-        T Deserialize(IArchive& archive)
+        T Deserialize(IArchive& archive) const
         {
           return DeserializeHelper<T>::Deserialize(archive);
         }

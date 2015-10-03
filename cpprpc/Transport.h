@@ -11,7 +11,9 @@ namespace CppRpc
 {
   inline namespace V1
   {
-    
+   
+    // TODO: curently this is only a dummy transport layer for testing!
+         
     template <InterfaceMode mode>
     class Transport
     {
@@ -27,8 +29,16 @@ namespace CppRpc
         {}
 
         Buffer TransferCall(const Buffer& callData)
-        {
-          return m_ServerCallback(callData);
+        {          
+          if (m_ServerCallback)
+          {
+            return m_ServerCallback(callData);
+          }
+          else
+          {
+            // TODO: must not happen ...
+            return Buffer();
+          }
         }
 
         virtual ~Transport() = default;
