@@ -1,6 +1,7 @@
 #include "cpprpc/Interface.h"
 
 #include <string>
+#include <functional>
 
 struct Test
 {
@@ -25,9 +26,10 @@ class Interface : public CppRpc::Interface
     : CppRpc::Interface(Implementation::Name, {1, 1})
     {}
 
+    // setup callable functions
     CppRpc::Function<void(void),                     mode> TestFunc1 = {*this, "TestFunc1", &Implementation::TestFunc1Impl};
-    CppRpc::Function<int(void),                      mode> TestFunc2 = {*this, "TestFunc2", &Implementation::TestFunc2Impl};
-    CppRpc::Function<int(int),                       mode> TestFunc3 = {*this, "TestFunc3", &Implementation::TestFunc3Impl};
+    CppRpc::Function<int(void),                      mode> TestFunc2 = {*this, "TestFunc2", std::function<int(void)>(&Implementation::TestFunc2Impl)};  // test std::function object
+    CppRpc::Function<int(int),                       mode> TestFunc3 = {*this, "TestFunc3", [] (int i) { return Implementation::TestFunc3Impl(i); }};  // test lambda function
     CppRpc::Function<bool(const std::string&),       mode> TestFunc4 = {*this, "TestFunc4", &Implementation::TestFunc4Impl};
     CppRpc::Function<bool(const std::string&, bool), mode> TestFunc5 = {*this, "TestFunc5", &Implementation::TestFunc5Impl};
 
