@@ -2,35 +2,48 @@
 
 #include <string>
 
+struct Test
+{
+  static void TestFunc1Impl() {}
+  static int  TestFunc2Impl() { return 1; }
+  static int  TestFunc3Impl(int i) { return i; }
+  static bool TestFunc4Impl(const std::string& str) { return !str.empty(); }
+  static bool TestFunc5Impl(const std::string& str, bool enable) { return enable ? !str.empty() : false; }
 
-template <CppRpc::InterfaceMode mode>
-class TestInterface : public CppRpc::Interface
+  static const CppRpc::Name Name;
+};
+
+const CppRpc::Name Test::Name = {"Test"};
+
+
+template <typename Implementation, CppRpc::InterfaceMode mode>
+class Interface : public CppRpc::Interface
 {
   public:
 
-    TestInterface()
-    : Interface("TestInterface", {1, 1})
+    Interface()
+    : CppRpc::Interface(Implementation::Name, {1, 1})
     {}
 
-    CppRpc::Function<void(void),                     mode> TestFunc1 = {*this, "TestFunc1", &TestFunc1Impl};
-    CppRpc::Function<int(void),                      mode> TestFunc2 = {*this, "TestFunc2", &TestFunc2Impl};
-    CppRpc::Function<int(int),                       mode> TestFunc3 = {*this, "TestFunc3", &TestFunc3Impl};
-    CppRpc::Function<bool(const std::string&),       mode> TestFunc4 = {*this, "TestFunc4", &TestFunc4Impl};
-    CppRpc::Function<bool(const std::string&, bool), mode> TestFunc5 = {*this, "TestFunc5", &TestFunc5Impl};
-
-  private:
-    static void TestFunc1Impl()                                    {}
-    static int  TestFunc2Impl()                                    { return 1; }
-    static int  TestFunc3Impl(int i)                               { return i; }
-    static bool TestFunc4Impl(const std::string& str)              { return !str.empty(); }
-    static bool TestFunc5Impl(const std::string& str, bool enable) { return enable ? !str.empty() : false; }
+    CppRpc::Function<void(void),                     mode> TestFunc1 = {*this, "TestFunc1", &Implementation::TestFunc1Impl};
+    CppRpc::Function<int(void),                      mode> TestFunc2 = {*this, "TestFunc2", &Implementation::TestFunc2Impl};
+    CppRpc::Function<int(int),                       mode> TestFunc3 = {*this, "TestFunc3", &Implementation::TestFunc3Impl};
+    CppRpc::Function<bool(const std::string&),       mode> TestFunc4 = {*this, "TestFunc4", &Implementation::TestFunc4Impl};
+    CppRpc::Function<bool(const std::string&, bool), mode> TestFunc5 = {*this, "TestFunc5", &Implementation::TestFunc5Impl};
 
 };
 
 
+template <CppRpc::InterfaceMode mode>
+using TestInterface = Interface<Test, mode>;
+
+using TestServer = TestInterface<CppRpc::InterfaceMode::Server>;
+using TestClient = TestInterface<CppRpc::InterfaceMode::Client>;
+
+
 int main()
 {
-  TestInterface<CppRpc::InterfaceMode::Server> server;
+  TestServer server;
 
   int i;
   bool b;
@@ -42,7 +55,7 @@ int main()
   //b = server.TestFunc5("foo", true);
 
 
-  TestInterface<CppRpc::InterfaceMode::Client> client;
+  TestClient client;
 
   client.TestFunc1();
 
@@ -54,8 +67,9 @@ int main()
   
   b = client.TestFunc5("foo", true);
 
-  //b = client.TestFunc5(true, "foo");  // cuases compilation error (incompatible argument types, in Marshaller::SerializeArguments)
+  //client.TestFunc();  // cuases compilation error (TestFunc not a member of TestClient)
   //b = client.TestFunc5(false);  // cuases compilation error (invalid number of arguments, static assert)
+  //b = client.TestFunc5(true, "foo");  // cuases compilation error (incompatible argument types, in Marshaller::SerializeArguments)  
 
   return 0;
 }
