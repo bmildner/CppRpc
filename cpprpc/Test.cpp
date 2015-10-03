@@ -50,11 +50,11 @@ int main()
   int i;
   bool b;
 
-  //server.TestFunc1();
-  //i = server.TestFunc2();
-  //i = server.TestFunc3(4711);
-  //b = server.TestFunc4("Hallo");
-  //b = server.TestFunc5("foo", true);
+  server.TestFunc1();
+  i = server.TestFunc2();
+  i = server.TestFunc3(4711);
+  b = server.TestFunc4("Hallo");
+  b = server.TestFunc5("foo", true);
 
 
   TestClient client;
@@ -71,7 +71,7 @@ int main()
 
   //client.TestFunc();  // cuases compilation error (TestFunc not a member of TestClient)
   //b = client.TestFunc5(false);  // cuases compilation error (invalid number of arguments, static assert)
-  //b = client.TestFunc5(true, "foo");  // cuases compilation error (incompatible argument types, in Marshaller::SerializeArguments)  
+  //b = client.TestFunc5(true, "foo");  // cuases compilation error (unable to convert argument, static assert)  
 
   return 0;
 }

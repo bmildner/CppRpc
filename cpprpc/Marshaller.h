@@ -67,13 +67,17 @@ namespace CppRpc
           // check number of arguments (ArgumentTypes vs RemainingArguments)
           static_assert(boost::mpl::size<ArgumentTypes>::value == (sizeof...(remainingArguments) + 1), "invalid numer of arguments supplied");
 
+          // check argument type against first type in ArgumentTypes sequenze
+          static_assert(std::is_convertible<Argument, std::remove_reference<boost::mpl::front<ArgumentTypes>::type>::type>::value, "unable to convert supplied argument to expected argument type");
+
           // serialize argument
           Serialize<boost::mpl::front<ArgumentTypes>::type>(archive, std::forward<Argument>(argument));
 
-          // serialize remaining arguments using recursive call OR terminate recursion by calling 
+          // serialize remaining arguments using recursive call OR terminate recursion by calling sentinal overload
           SerializeArguments<boost::mpl::pop_front<ArgumentTypes>::type>(archive, std::forward<RemainingArguments>(remainingArguments)...);
         }
 
+        // sentinal overload to end recursion
         template <typename ArgumentTypes>
         void SerializeArguments(OArchive& /*archive*/) const
         {
