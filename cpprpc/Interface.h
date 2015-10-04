@@ -20,6 +20,7 @@ namespace CppRpc
   inline namespace V1
   {
   
+    const Version CppRpcVersion = {1, 0};
 
     class Interface
     {
@@ -30,8 +31,8 @@ namespace CppRpc
 
         virtual ~Interface() = default;
 
-        Name GetName() const {return m_Name;}
-        Version GetVersion() const {return m_Version;}
+        const Name& GetName() const {return m_Name;}
+        const Version& GetVersion() const {return m_Version;}
 
       private:
         Name    m_Name;

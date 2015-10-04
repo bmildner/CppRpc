@@ -10,7 +10,7 @@ namespace CppRpc
     {
 
       FunctionDispatchHeader::FunctionDispatchHeader(const CppRpc::V1::Interface& interface, const Name& functionName)
-      : Interface(interface.GetName()), Version(interface.GetVersion()), Function(functionName)
+      : m_Interface(interface.GetName()), m_Version(interface.GetVersion()), m_Function(functionName)
       {
       }
 

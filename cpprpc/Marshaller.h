@@ -21,6 +21,24 @@ namespace CppRpc
   inline namespace V1
   {
 
+    template<class Archive>
+    inline void serialize(Archive& ar, Version& ver, const unsigned int /*version*/)
+    {
+      ar & ver.m_Major;
+      ar & ver.m_Minor;
+    }
+
+    namespace Detail
+    {
+      template<class Archive>
+      inline void serialize(Archive& ar, FunctionDispatchHeader& funcDispHeader, const unsigned int /*version*/)
+      {
+        ar & funcDispHeader.m_Interface;
+        ar & funcDispHeader.m_Version;
+        ar & funcDispHeader.m_Function;
+      }
+    }
+
     template <typename Dispatcher = DefaultDispatcher>
     class Marshaller
     {
@@ -67,7 +85,7 @@ namespace CppRpc
           // check number of arguments (ArgumentTypes vs RemainingArguments)
           static_assert(boost::mpl::size<ArgumentTypes>::value == (sizeof...(remainingArguments) + 1), "invalid numer of arguments supplied");
 
-          // check argument type against first type in ArgumentTypes sequenze
+          // check that argument is convertible to first type in ArgumentTypes sequenze
           static_assert(std::is_convertible<Argument, std::remove_reference<boost::mpl::front<ArgumentTypes>::type>::type>::value, "unable to convert supplied argument to expected argument type");
 
           // serialize argument

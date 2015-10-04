@@ -5,9 +5,8 @@
 
 #include <string>
 
-#include <boost/serialization/access.hpp>
-
 #include "cpprpc/Types.h"
+
 
 namespace CppRpc
 {
@@ -17,25 +16,13 @@ namespace CppRpc
 
     namespace Detail
     {
-      class FunctionDispatchHeader
+      struct FunctionDispatchHeader
       {
-        public:
-          FunctionDispatchHeader(const Interface& interface, const Name& functionName);
+        FunctionDispatchHeader(const Interface& interface, const Name& functionName);
 
-        private:
-          friend class boost::serialization::access;
-
-          template<class Archive>
-          void serialize(Archive & ar, const unsigned int /*version*/)
-          {
-            ar & Interface;
-            ar & Version;
-            ar & Function;
-          }
-
-          Name Interface;
-          Version Version;
-          Name Function;
+        Name    m_Interface;
+        Version m_Version;
+        Name    m_Function;
       };
     }
 

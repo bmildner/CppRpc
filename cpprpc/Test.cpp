@@ -69,9 +69,9 @@ int main()
   
   b = client.TestFunc5("foo", true);
 
-  //client.TestFunc();  // cuases compilation error (TestFunc not a member of TestClient)
-  //b = client.TestFunc5(false);  // cuases compilation error (invalid number of arguments, static assert)
-  //b = client.TestFunc5(true, "foo");  // cuases compilation error (unable to convert argument, static assert)  
+  //client.TestFunc();  // causes compilation error (TestFunc not a member of TestClient)
+  //b = client.TestFunc5(false);  // causes compilation error (invalid number of arguments, static assert)
+  //b = client.TestFunc5(true, "foo");  // causes compilation error (unable to convert argument, static assert)  
 
   return 0;
 }

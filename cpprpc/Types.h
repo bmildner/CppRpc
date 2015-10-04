@@ -7,8 +7,6 @@
 #include <vector>
 #include <cstdint>
 
-#include <boost/serialization/access.hpp>
-
 namespace CppRpc
 {
   inline namespace V1
@@ -22,26 +20,11 @@ namespace CppRpc
 
     using Buffer = std::vector<Byte>;
 
-    class Version
+    struct Version
     {
-      public:
-        std::uint32_t Major;
-        std::uint32_t Minor;
-
-      private:
-        friend class boost::serialization::access;
-
-        template<class Archive>
-        void serialize(Archive & ar, const unsigned int /*version*/)
-        {
-          ar & Major;
-          ar & Minor;
-        }
-
+      std::uint16_t m_Major;
+      std::uint16_t m_Minor;
     };
-
-    // forward declaration
-    class Interface;
 
   }  // namespace V1
 }  // namespace CppRpc
