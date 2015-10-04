@@ -20,6 +20,7 @@ namespace CppRpc
       {
         FunctionDispatchHeader(const Interface& interface, const Name& functionName);
 
+        Version m_LibraryVersion;
         Name    m_Interface;
         Version m_Version;
         Name    m_Function;

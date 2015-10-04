@@ -33,6 +33,7 @@ namespace CppRpc
       template<class Archive>
       inline void serialize(Archive& ar, FunctionDispatchHeader& funcDispHeader, const unsigned int /*version*/)
       {
+        ar & funcDispHeader.m_LibraryVersion;
         ar & funcDispHeader.m_Interface;
         ar & funcDispHeader.m_Version;
         ar & funcDispHeader.m_Function;
