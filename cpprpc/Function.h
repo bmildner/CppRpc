@@ -18,6 +18,7 @@ namespace CppRpc
 
     class Interface;
 
+    template <typename T>
     class FunctionImplBase
     {
       public:
@@ -30,23 +31,24 @@ namespace CppRpc
         const Name& GetName() const { return m_Name; }
         const Interface& GetInterface() const { return m_Interface; }
 
+      protected:
+        using ReturnType = typename boost::function_types::result_type<T>::type;
+        using ParamTypes = typename boost::function_types::parameter_types<T>::type;
+
       private:
         Name             m_Name;
         const Interface& m_Interface;
     };
 
 
-    template <typename T, InterfaceMode mode,
-              typename ReturnType = typename boost::function_types::result_type<T>::type, 
-              typename ParamTypes = typename boost::function_types::parameter_types<T>::type>
-    class FunctionImpl : public FunctionImplBase
+    template <typename T, InterfaceMode mode>
+    class FunctionImpl : public FunctionImplBase<T>
     {
       static_assert(true, "unknown interface mode");
     };
 
-    template <typename T,
-    typename ReturnType, typename ParamTypes>
-    class FunctionImpl<T, InterfaceMode::Client, ReturnType, ParamTypes> : public FunctionImplBase
+    template <typename T>
+    class FunctionImpl<T, InterfaceMode::Client> : public FunctionImplBase<T>
     {
       public:
         using RetType = ReturnType;
@@ -69,9 +71,8 @@ namespace CppRpc
         }
     };
 
-    template <typename T, 
-              typename ReturnType, typename ParamTypes>
-    class FunctionImpl<T, InterfaceMode::Server, ReturnType, ParamTypes> : public FunctionImplBase
+    template <typename T>
+    class FunctionImpl<T, InterfaceMode::Server> : public FunctionImplBase<T>
     {
       public:
         using RetType = ReturnType;
