@@ -5,9 +5,11 @@
 
 #include <sstream>
 #include <type_traits>
+#include <cassert>
 
 #include <boost/archive/text_oarchive.hpp>
 #include <boost/archive/text_iarchive.hpp>
+#include <boost/serialization/version.hpp>
 
 #include <boost/mpl/size.hpp>
 #include <boost/mpl/front.hpp>
@@ -16,27 +18,40 @@
 #include "cpprpc/Types.h"
 #include "cpprpc/Dispatcher.h"
 
+
+BOOST_CLASS_VERSION(CppRpc::V1::Version, CppRpc::V1::LibraryVersion)
+BOOST_CLASS_VERSION(CppRpc::V1::Detail::FunctionDispatchHeader, CppRpc::V1::LibraryVersion)
+
 namespace CppRpc
 {
   inline namespace V1
   {
 
     template<class Archive>
-    inline void serialize(Archive& ar, Version& ver, const unsigned int /*version*/)
+    inline void serialize(Archive& ar, Version& ver, const unsigned int version)
     {
-      ar & ver.m_Major;
-      ar & ver.m_Minor;
-    }
+      assert(version == LibraryVersionV1);  // TODO: throw exception
+
+      if (version == LibraryVersionV1)
+      {
+        ar & ver.m_Major;
+        ar & ver.m_Minor;
+      }
+    }    
 
     namespace Detail
     {
       template<class Archive>
-      inline void serialize(Archive& ar, FunctionDispatchHeader& funcDispHeader, const unsigned int /*version*/)
+      inline void serialize(Archive& ar, FunctionDispatchHeader& funcDispHeader, const unsigned int version)
       {
-        ar & funcDispHeader.m_LibraryVersion;
-        ar & funcDispHeader.m_Interface;
-        ar & funcDispHeader.m_Version;
-        ar & funcDispHeader.m_Function;
+        assert(version == LibraryVersionV1);  // TODO: throw exception
+
+        if (version == LibraryVersionV1)
+        {
+          ar & funcDispHeader.m_Interface;
+          ar & funcDispHeader.m_Version;
+          ar & funcDispHeader.m_Function;
+        }
       }
     }
 

@@ -58,6 +58,8 @@ namespace CppRpc
         : FunctionImplBase(interface, name)
         {}
 
+        virtual ~FunctionImpl() override = default;
+
         template <typename... Arguments>
         ReturnType operator()(Arguments&&... arguments)
         {
@@ -82,6 +84,8 @@ namespace CppRpc
         : FunctionImplBase(interface, name), m_Implementation(std::forward<Implementation>(implementation))
         {}
 
+        virtual ~FunctionImpl() override = default;
+
         // TODO: remove, should not be needed, there should only be server internal calls to the implementations
         template <typename... Arguments>
         ReturnType operator()(Arguments&&... arguments)
@@ -102,6 +106,8 @@ namespace CppRpc
         Function(const Interface& interface, const Name& name, Implementation&& implementation)
         : FunctionImpl(interface, name, std::forward<Implementation>(implementation))
         {}
+
+        virtual ~Function() override = default;
     };
 
   }  // namespace V1

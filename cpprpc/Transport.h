@@ -12,7 +12,7 @@ namespace CppRpc
   inline namespace V1
   {
    
-    // TODO: curently this is only a dummy transport layer for testing!
+    // TODO: curently this is not even a dummy transport layer for testing!
          
     template <InterfaceMode mode>
     class Transport

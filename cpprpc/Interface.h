@@ -20,8 +20,6 @@ namespace CppRpc
   
   inline namespace V1
   {
-  
-    const Version CppRpcVersion = {1, 0};
 
     class Interface
     {

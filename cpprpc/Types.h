@@ -7,6 +7,7 @@
 #include <vector>
 #include <cstdint>
 
+
 namespace CppRpc
 {
   inline namespace V1
@@ -25,6 +26,9 @@ namespace CppRpc
       std::uint16_t m_Major;
       std::uint16_t m_Minor;
     };
+
+    const unsigned int LibraryVersionV1 = 1;  // boost::serialization versions may only be 8bit wide ...
+    const unsigned int LibraryVersion = LibraryVersionV1;
 
   }  // namespace V1
 }  // namespace CppRpc
