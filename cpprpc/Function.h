@@ -26,7 +26,7 @@ namespace CppRpc
         : m_Name(name), m_Interface(interface)
         {}
 
-        virtual ~FunctionImplBase() = default;
+        virtual ~FunctionImplBase() noexcept = default;
 
         const Name& GetName() const { return m_Name; }
         const Interface& GetInterface() const { return m_Interface; }
@@ -58,7 +58,7 @@ namespace CppRpc
         : FunctionImplBase(interface, name)
         {}
 
-        virtual ~FunctionImpl() override = default;
+        virtual ~FunctionImpl() noexcept override = default;
 
         template <typename... Arguments>
         ReturnType operator()(Arguments&&... arguments)
@@ -84,7 +84,7 @@ namespace CppRpc
         : FunctionImplBase(interface, name), m_Implementation(std::forward<Implementation>(implementation))
         {}
 
-        virtual ~FunctionImpl() override = default;
+        virtual ~FunctionImpl() noexcept override = default;
 
         // TODO: remove, should not be needed, there should only be server internal calls to the implementations
         template <typename... Arguments>
@@ -107,7 +107,7 @@ namespace CppRpc
         : FunctionImpl(interface, name, std::forward<Implementation>(implementation))
         {}
 
-        virtual ~Function() override = default;
+        virtual ~Function() noexcept override = default;
     };
 
   }  // namespace V1

@@ -28,7 +28,7 @@ namespace CppRpc
         : m_Name(name), m_Version(version)
         {}
 
-        virtual ~Interface() = default;
+        virtual ~Interface() noexcept = default;
 
         const Name& GetName() const {return m_Name;}
         const Version& GetVersion() const {return m_Version;}

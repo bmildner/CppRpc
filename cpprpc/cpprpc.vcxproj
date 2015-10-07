@@ -165,6 +165,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="Dispatcher.h" />
+    <ClInclude Include="Exception.h" />
     <ClInclude Include="Function.h" />
     <ClInclude Include="Interface.h" />
     <ClInclude Include="Marshaller.h" />

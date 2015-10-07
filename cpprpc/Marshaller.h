@@ -17,6 +17,7 @@
 
 #include "cpprpc/Types.h"
 #include "cpprpc/Dispatcher.h"
+#include "cpprpc/Exception.h"
 
 
 BOOST_CLASS_VERSION(CppRpc::V1::Version, CppRpc::V1::LibraryVersion)
@@ -30,12 +31,14 @@ namespace CppRpc
     template<class Archive>
     inline void serialize(Archive& ar, Version& ver, const unsigned int version)
     {
-      assert(version == LibraryVersionV1);  // TODO: throw exception
-
       if (version == LibraryVersionV1)
       {
         ar & ver.m_Major;
         ar & ver.m_Minor;
+      }
+      else
+      {
+        throw Detail::ExceptionImpl<LibraryVersionMissmatch>("Version of class Version not equal to LibraryVersionV1");
       }
     }    
 
@@ -44,13 +47,15 @@ namespace CppRpc
       template<class Archive>
       inline void serialize(Archive& ar, FunctionDispatchHeader& funcDispHeader, const unsigned int version)
       {
-        assert(version == LibraryVersionV1);  // TODO: throw exception
-
         if (version == LibraryVersionV1)
         {
           ar & funcDispHeader.m_Interface;
           ar & funcDispHeader.m_Version;
           ar & funcDispHeader.m_Function;
+        }
+        else
+        {
+          throw Detail::ExceptionImpl<LibraryVersionMissmatch>("Version of class FunctionDispatchHeader not equal to LibraryVersionV1");
         }
       }
     }
