@@ -176,6 +176,7 @@
     <ClCompile Include="Dispatcher.cpp" />
     <ClCompile Include="Test.cpp" />
     <ClCompile Include="Transport.cpp" />
+    <ClCompile Include="Types.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -13,7 +13,9 @@
 
 #include <boost/mpl/size.hpp>
 #include <boost/mpl/front.hpp>
+#include <boost/mpl/back.hpp>
 #include <boost/mpl/pop_front.hpp>
+#include <boost/mpl/pop_back.hpp>
 
 #include "cpprpc/Types.h"
 #include "cpprpc/Dispatcher.h"
@@ -60,6 +62,7 @@ namespace CppRpc
       }
     }
 
+
     template <typename Dispatcher = DefaultDispatcher>
     class Marshaller
     {
@@ -73,7 +76,7 @@ namespace CppRpc
         using IArchive = boost::archive::text_iarchive;
 
         template <typename ArgumentTypes, typename... Arguments>
-        Buffer SerializeFunctionCall(const Interface& interface, const Name& functionName, Arguments&&... arguments) const
+        static Buffer SerializeFunctionCall(const Interface& interface, const Name& functionName, Arguments&&... arguments)
         {
           // check number of arguments (ArgumentTypes vs Arguments)
           static_assert(boost::mpl::size<ArgumentTypes>::value == sizeof...(arguments), "invalid number of arguments supplied");
@@ -81,8 +84,10 @@ namespace CppRpc
           OStream stream;
           OArchive archive(stream);
 
+          // serialize dispatch header
           Serialize(archive, Dispatcher::FunctionDispatchHeader(interface, functionName));
 
+          // serialize arguments
           SerializeArguments<ArgumentTypes>(archive, std::forward<Arguments>(arguments)...);
 
           auto str = stream.str();
@@ -90,7 +95,7 @@ namespace CppRpc
         }
 
         template <typename ReturnType>
-        ReturnType DeserializeReturnValue(const Buffer& buffer) const
+        static ReturnType DeserializeReturnValue(const Buffer& buffer)
         {
           IStream stream(std::string(buffer.begin(), buffer.end()));
           IArchive archive(stream);
@@ -98,19 +103,32 @@ namespace CppRpc
           return Deserialize<ReturnType>(archive);
         }
 
-      private:
-        
-        template <typename ArgumentTypes, typename Argument, typename... RemainingArguments>
-        void SerializeArguments(OArchive& archive, Argument&& argument, RemainingArguments&&... remainingArguments) const
+        template <typename ReturnType, typename ArgumentTypes, typename Implementaion>
+        static Buffer DeserializeAndExecuteFunctionCall(const Buffer& paramData, Implementaion& implementation)
         {
+          IStream stream(std::string(paramData.begin(), paramData.end()));
+          IArchive archive(stream);
+
+          //return FunctionCallHelperImpl<ReturnType, ArgumentTypes>(archive, implementation);
+
+          return FunctionCallHelper<ReturnType, ArgumentTypes>::Do(archive, implementation);
+        }
+
+      private:
+
+        template <typename ArgumentTypes, typename Argument, typename... RemainingArguments>
+        static void SerializeArguments(OArchive& archive, Argument&& argument, RemainingArguments&&... remainingArguments)
+        {
+          using ArgumentType = std::remove_reference<boost::mpl::front<ArgumentTypes>::type>::type;
+
           // check number of arguments (ArgumentTypes vs RemainingArguments)
           static_assert(boost::mpl::size<ArgumentTypes>::value == (sizeof...(remainingArguments) + 1), "invalid numer of arguments supplied");
 
           // check that argument is convertible to first type in ArgumentTypes sequenze
-          static_assert(std::is_convertible<Argument, std::remove_reference<boost::mpl::front<ArgumentTypes>::type>::type>::value, "unable to convert supplied argument to expected argument type");
+          static_assert(std::is_convertible<Argument, ArgumentType>::value, "unable to convert supplied argument to expected argument type");
 
           // serialize argument
-          Serialize<boost::mpl::front<ArgumentTypes>::type>(archive, std::forward<Argument>(argument));
+          Serialize<ArgumentType>(archive, std::forward<Argument>(argument));
 
           // serialize remaining arguments using recursive call OR terminate recursion by calling sentinal overload
           SerializeArguments<boost::mpl::pop_front<ArgumentTypes>::type>(archive, std::forward<RemainingArguments>(remainingArguments)...);
@@ -118,14 +136,71 @@ namespace CppRpc
 
         // sentinal overload to end recursion
         template <typename ArgumentTypes>
-        void SerializeArguments(OArchive& /*archive*/) const
+        static void SerializeArguments(OArchive& /*archive*/)
         {
           // all arguments must have been serialized; validate usage as recursion sentinal
           static_assert(boost::mpl::size<ArgumentTypes>::value == 0, "");
         }
 
+
+        template <typename ReturnType, typename ArgumentTypes, std::size_t ArgumentCount = boost::mpl::size<ArgumentTypes>::value>
+        struct FunctionCallHelper
+        {
+          static_assert(boost::mpl::size<ArgumentTypes>::value > 0, "");
+
+          template <typename Implementaion, typename... Arguments>
+          static Buffer Do(IArchive& archive, Implementaion& implementation, Arguments&&... arguments)
+          {
+            using ParameterType = std::remove_reference<boost::mpl::back<ArgumentTypes>::type>::type;
+
+            // deserialize parameter
+            ParameterType param = Deserialize<std::remove_const<ParameterType>::type>(archive);
+
+            // deserialize remaining parameters OR do function call
+            return FunctionCallHelper<ReturnType, boost::mpl::pop_back<ArgumentTypes>::type>::Do(archive, implementation, param, std::forward<Arguments>(arguments)...);
+          }
+        };
+
+        // spezialisation for ReturnType != void AND no more parameters
+        template <typename ReturnType, typename ArgumentTypes>
+        struct FunctionCallHelper<ReturnType, ArgumentTypes, 0>
+        {
+          static_assert(boost::mpl::size<ArgumentTypes>::value == 0, "");
+          static_assert(!std::is_void<ReturnType>::value, "");
+
+          template <typename Implementaion, typename... Arguments>
+          static Buffer Do(IArchive& /*archive*/, Implementaion& implementation, Arguments&&... arguments)
+          {
+            OStream stream;
+            OArchive archive(stream);
+
+            // call function implementation AND serialize result
+            Serialize(archive, implementation(std::forward<Arguments>(arguments)...));
+
+            auto str = stream.str();
+            return Buffer(str.data(), str.data() + str.size());
+          }
+        };
+
+        // spezialisation for ReturnType == void AND no more parameters
+        template <typename ArgumentTypes>
+        struct FunctionCallHelper<void, ArgumentTypes, 0>
+        {
+          static_assert(boost::mpl::size<ArgumentTypes>::value == 0, "");
+
+          template <typename Implementaion, typename... Arguments>
+          static Buffer Do(IArchive& /*archive*/, Implementaion& implementation, Arguments&&... arguments)
+          {
+            // call function implementation
+            implementation(std::forward<Arguments>(arguments)...);
+
+            return Buffer();
+          }
+        };
+
+
         template <typename T>
-        void Serialize(OArchive& archive, T&& data) const
+        static void Serialize(OArchive& archive, T&& data)
         {
           archive << data;
         }
@@ -144,7 +219,7 @@ namespace CppRpc
           }
         };
 
-        // spezialisation of DeserializeHelper for T = void
+        // spezialisation for T = void
         template <>
         struct DeserializeHelper<void>
         {
@@ -153,7 +228,7 @@ namespace CppRpc
         };
 
         template <typename T>
-        T Deserialize(IArchive& archive) const
+        static T Deserialize(IArchive& archive)
         {
           return DeserializeHelper<T>::Deserialize(archive);
         }

@@ -25,6 +25,13 @@ namespace CppRpc
     {
       std::uint16_t m_Major;
       std::uint16_t m_Minor;
+
+      bool operator<(const Version& other) const
+      {
+        return (m_Major < other.m_Major) || ((m_Major == other.m_Major) && (m_Minor < other.m_Minor));
+      }
+
+      std::string str() const;
     };
 
     const std::uint8_t LibraryVersionV1 = 1;  // boost::serialization versions may only be 8bit wide ...

@@ -14,6 +14,7 @@
 #include "cpprpc/Function.h"
 #include "cpprpc/Marshaller.h"
 #include "cpprpc/Transport.h"
+#include "cpprpc/Dispatcher.h"
 
 namespace CppRpc
 {
@@ -30,12 +31,16 @@ namespace CppRpc
 
         virtual ~Interface() noexcept = default;
 
-        const Name& GetName() const {return m_Name;}
-        const Version& GetVersion() const {return m_Version;}
+        const Name& GetName() const { return m_Name; }
+        const Version& GetVersion() const { return m_Version; }
+
+        DefaultDispatcher& GetDispatcher() { return m_Dispatcher; }
+        const DefaultDispatcher& GetDispatcher() const { return m_Dispatcher; }
 
       private:
-        Name    m_Name;
-        Version m_Version;
+        Name              m_Name;
+        Version           m_Version;
+        DefaultDispatcher m_Dispatcher;
     };
 
   }  // namespace V1

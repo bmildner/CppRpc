@@ -8,7 +8,7 @@
 #include <boost/function_types/parameter_types.hpp>
 
 #include "cpprpc/Types.h"
-
+#include "cpprpc/Dispatcher.h"
 
 namespace CppRpc
 {
@@ -22,22 +22,20 @@ namespace CppRpc
     class FunctionImplBase
     {
       public:
-        FunctionImplBase(const Interface& interface, const Name& name)
+        FunctionImplBase(Interface& interface, const Name& name)
         : m_Name(name), m_Interface(interface)
         {}
 
         virtual ~FunctionImplBase() noexcept = default;
 
         const Name& GetName() const { return m_Name; }
-        const Interface& GetInterface() const { return m_Interface; }
 
       protected:
         using ReturnType = typename boost::function_types::result_type<T>::type;
         using ParamTypes = typename boost::function_types::parameter_types<T>::type;
 
-      private:
-        Name             m_Name;
-        const Interface& m_Interface;
+        Name       m_Name;
+        Interface& m_Interface;
     };
 
 
@@ -54,7 +52,7 @@ namespace CppRpc
         using RetType = ReturnType;
 
         template <typename Implementation>
-        FunctionImpl(const Interface& interface, const Name& name, Implementation&& /*implementation*/)
+        FunctionImpl(Interface& interface, const Name& name, Implementation&& /*implementation*/)
         : FunctionImplBase(interface, name)
         {}
 
@@ -63,13 +61,11 @@ namespace CppRpc
         template <typename... Arguments>
         ReturnType operator()(Arguments&&... arguments)
         {
-          DefaultMarshaller marshaller;
-
-          Buffer callData = marshaller.SerializeFunctionCall<ParamTypes>(GetInterface(), GetName(), std::forward<Arguments>(arguments)...);
+          Buffer callData = DefaultMarshaller::SerializeFunctionCall<ParamTypes>(m_Interface, m_Name, std::forward<Arguments>(arguments)...);
           
           Buffer returnData = DelaufTransport<InterfaceMode::Client>().TransferCall(callData);
 
-          return marshaller.DeserializeReturnValue<ReturnType>(returnData);
+          return DefaultMarshaller::DeserializeReturnValue<ReturnType>(returnData);
         }
     };
 
@@ -80,11 +76,22 @@ namespace CppRpc
         using RetType = ReturnType;
 
         template <typename Implementation>
-        FunctionImpl(const Interface& interface, const Name& name, Implementation&& implementation)
+        FunctionImpl(Interface& interface, const Name& name, Implementation&& implementation)
         : FunctionImplBase(interface, name), m_Implementation(std::forward<Implementation>(implementation))
-        {}
+        {
+          auto marshalledImplementation = [this] (const Buffer& paramData) -> Buffer
+            { 
+              return DefaultMarshaller::DeserializeAndExecuteFunctionCall<ReturnType, ParamTypes>(paramData, m_Implementation);
+            };
 
-        virtual ~FunctionImpl() noexcept override = default;
+          // register function
+          m_Interface.GetDispatcher().RegisterFunctionImplementation(m_Interface, m_Name, marshalledImplementation);
+        }
+
+        virtual ~FunctionImpl() noexcept override
+        {
+          // TODO: deregister from dispatcher!
+        }
 
         // TODO: remove, should not be needed, there should only be server internal calls to the implementations
         template <typename... Arguments>
@@ -103,7 +110,7 @@ namespace CppRpc
     {
       public:
         template <typename Implementation>
-        Function(const Interface& interface, const Name& name, Implementation&& implementation)
+        Function(Interface& interface, const Name& name, Implementation&& implementation)
         : FunctionImpl(interface, name, std::forward<Implementation>(implementation))
         {}
 
