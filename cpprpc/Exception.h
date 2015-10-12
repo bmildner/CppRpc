@@ -27,12 +27,13 @@ namespace CppRpc
     struct Exception : virtual std::exception, ExceptionInterface {};
 
 
-    struct LocalException : Exception {};
+    struct LocalException  : Exception {};
     struct RemoteException : Exception {};
 
-    struct LibraryVersionMissmatch : LocalException {};
+    struct LibraryVersionMissmatch  : LocalException {};
     struct FunctionAlreadyRegistred : LocalException {};
-
+    struct UnknownInterface         : LocalException {};
+    struct UnknownFunction          : LocalException {};
 
     namespace Detail
     {

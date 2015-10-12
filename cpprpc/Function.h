@@ -90,7 +90,15 @@ namespace CppRpc
 
         virtual ~FunctionImpl() noexcept override
         {
-          // TODO: deregister from dispatcher!
+          try
+          {
+            m_Interface.GetDispatcher().DeregisterFunctionImplementation(m_Interface, m_Name);
+          }
+
+          catch (...)
+          {
+            // TODO: add trace / logging
+          }
         }
 
       private:

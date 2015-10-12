@@ -37,5 +37,33 @@ namespace CppRpc
       }
     }
 
+    void Dispatcher::DeregisterFunctionImplementation(const Interface& interface, const Name& name)
+    {
+      // find interface
+      auto interfaceIter = m_Interfaces.find({interface.GetName(), interface.GetVersion()});
+
+      if (interfaceIter == m_Interfaces.end())
+      {
+        throw Detail::ExceptionImpl<UnknownInterface>((boost::format("Unknown Interface \"%1%:%2%\"") % interface.GetName() % interface.GetVersion().str()).str());
+      }
+
+      // find function
+      auto functionIter = interfaceIter->second.find(name);
+
+      if (functionIter == interfaceIter->second.end())
+      {
+        throw Detail::ExceptionImpl<UnknownFunction>((boost::format("Unknown Function \"%1%:%2%::%3%\"") % interface.GetName() % interface.GetVersion().str() % name).str());
+      }
+
+      // remove function
+      interfaceIter->second.erase(functionIter);
+
+      // remove Interface if empty
+      if (interfaceIter->second.empty())
+      {
+        m_Interfaces.erase(interfaceIter);
+      }
+    }
+
   }  // namespace V1
 }  // namespace CppRpc

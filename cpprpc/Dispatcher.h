@@ -38,6 +38,8 @@ namespace CppRpc
 
         void RegisterFunctionImplementation(const Interface& interface, const Name& name, FunctionImplementation implementation);
 
+        void DeregisterFunctionImplementation(const Interface& interface, const Name& name);
+
       private:
         
         using Functions = std::map<Name, FunctionImplementation>;
