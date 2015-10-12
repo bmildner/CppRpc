@@ -93,13 +93,6 @@ namespace CppRpc
           // TODO: deregister from dispatcher!
         }
 
-        // TODO: remove, should not be needed, there should only be server internal calls to the implementations
-        template <typename... Arguments>
-        ReturnType operator()(Arguments&&... arguments)
-        {
-          return m_Implementation(std::forward<Arguments>(arguments)...);
-        }
-
       private:
         std::function<T> m_Implementation;
     };

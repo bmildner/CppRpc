@@ -50,12 +50,6 @@ int main()
   int i;
   bool b;
 
-  //server.TestFunc1();
-  //i = server.TestFunc2();
-  //i = server.TestFunc3(4711);
-  //b = server.TestFunc4("Hallo");
-  //b = server.TestFunc5("foo", true);
-
 
   TestClient client;
 
