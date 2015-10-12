@@ -3,7 +3,6 @@
 
 #pragma once
 
-
 #include <boost/function_types/result_type.hpp>
 #include <boost/function_types/parameter_types.hpp>
 
@@ -49,8 +48,6 @@ namespace CppRpc
     class FunctionImpl<T, InterfaceMode::Client> : public FunctionImplBase<T>
     {
       public:
-        using RetType = ReturnType;
-
         template <typename Implementation>
         FunctionImpl(Interface& interface, const Name& name, Implementation&& /*implementation*/)
         : FunctionImplBase(interface, name)
@@ -73,8 +70,6 @@ namespace CppRpc
     class FunctionImpl<T, InterfaceMode::Server> : public FunctionImplBase<T>
     {
       public:
-        using RetType = ReturnType;
-
         template <typename Implementation>
         FunctionImpl(Interface& interface, const Name& name, Implementation&& implementation)
         : FunctionImplBase(interface, name), m_Implementation(std::forward<Implementation>(implementation))

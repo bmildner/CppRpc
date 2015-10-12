@@ -174,6 +174,7 @@ namespace CppRpc
             OStream stream;
             OArchive archive(stream);
 
+            // TODO: add exception handling !
             // call function implementation AND serialize result
             Serialize(archive, implementation(std::forward<Arguments>(arguments)...));
 
@@ -191,6 +192,7 @@ namespace CppRpc
           template <typename Implementaion, typename... Arguments>
           static Buffer Do(IArchive& /*archive*/, Implementaion& implementation, Arguments&&... arguments)
           {
+            // TODO: add exception handling !
             // call function implementation
             implementation(std::forward<Arguments>(arguments)...);
 
