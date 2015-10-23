@@ -22,11 +22,12 @@ namespace CppRpc
   inline namespace V1
   {
 
+    template <InterfaceMode Mode>
     class Interface
     {
       public:
-        Interface(const Name& name, Version version = {1, 0})
-        : m_Name(name), m_Version(version)
+        Interface(Transport<Mode>& transport, const Name& name, Version version = {1, 0})
+        : m_Name(name), m_Version(version), m_Dispatcher(transport)
         {}
 
         virtual ~Interface() noexcept = default;
@@ -34,13 +35,13 @@ namespace CppRpc
         const Name& GetName() const { return m_Name; }
         const Version& GetVersion() const { return m_Version; }
 
-        DefaultDispatcher& GetDispatcher() { return m_Dispatcher; }
-        const DefaultDispatcher& GetDispatcher() const { return m_Dispatcher; }
+        DefaultDispatcher<Mode>& GetDispatcher() { return m_Dispatcher; }
+        const DefaultDispatcher<Mode>& GetDispatcher() const { return m_Dispatcher; }
 
       private:
-        Name              m_Name;
-        Version           m_Version;
-        DefaultDispatcher m_Dispatcher;
+        Name                    m_Name;
+        Version                 m_Version;
+        DefaultDispatcher<Mode> m_Dispatcher;  // TODO: use externally provided dispatcher!
     };
 
   }  // namespace V1

@@ -34,12 +34,13 @@ namespace CppRpc
     struct FunctionAlreadyRegistred : LocalException {};
     struct UnknownInterface         : LocalException {};
     struct UnknownFunction          : LocalException {};
+    struct UnknownInterfaceMode     : LocalException {};
 
     namespace Detail
     {
 
       template <typename Interface>
-      class ExceptionImpl final : public Interface, public virtual std::exception
+      class ExceptionImpl : public Interface, public virtual std::exception
       {
         public:
           template <typename T>

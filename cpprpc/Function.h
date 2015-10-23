@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <type_traits>
+
 #include <boost/function_types/result_type.hpp>
 #include <boost/function_types/parameter_types.hpp>
 
@@ -15,102 +17,111 @@ namespace CppRpc
   inline namespace V1
   {
 
+    template <InterfaceMode Mode>
     class Interface;
 
-    template <typename T>
-    class FunctionImplBase
+    namespace Detail
     {
-      public:
-        FunctionImplBase(Interface& interface, const Name& name)
-        : m_Name(name), m_Interface(interface)
-        {}
 
-        virtual ~FunctionImplBase() noexcept = default;
+      template <typename T, InterfaceMode Mode>
+      class FunctionImplBase
+      {
+        public:
+          FunctionImplBase(Interface<Mode>& interface, const Name& name)
+          : m_Name(name), m_Interface(interface)
+          {}
 
-        const Name& GetName() const { return m_Name; }
+          virtual ~FunctionImplBase() noexcept = default;
 
-      protected:
-        using ReturnType = typename boost::function_types::result_type<T>::type;
-        using ParamTypes = typename boost::function_types::parameter_types<T>::type;
+          const Name& GetName() const { return m_Name; }
 
-        Name       m_Name;
-        Interface& m_Interface;
-    };
+          static_assert(std::is_function<T>::value, "T must be a function type (like \"void(int)\")");
+
+        protected:
+          // TODO: check for not supportet types (pointers ?!?)
+          // TODO: wrap in-out params
+          using ReturnType = typename boost::function_types::result_type<T>::type;
+          using ParamTypes = typename boost::function_types::parameter_types<T>::type;
+
+          Name             m_Name;
+          Interface<Mode>& m_Interface;
+      };
 
 
-    template <typename T, InterfaceMode mode>
-    class FunctionImpl : public FunctionImplBase<T>
-    {
-      static_assert(true, "unknown interface mode");
-    };
+      template <typename T, InterfaceMode Mode>
+      class FunctionImpl : public FunctionImplBase<T, Mode>
+      {
+        static_assert(true, "unknown interface mode");
+      };
 
-    template <typename T>
-    class FunctionImpl<T, InterfaceMode::Client> : public FunctionImplBase<T>
-    {
-      public:
-        template <typename Implementation>
-        FunctionImpl(Interface& interface, const Name& name, Implementation&& /*implementation*/)
-        : FunctionImplBase(interface, name)
-        {}
+      template <typename T>
+      class FunctionImpl<T, InterfaceMode::Client> : public FunctionImplBase<T, InterfaceMode::Client>
+      {
+        public:
+          template <typename Implementation>
+          FunctionImpl(Interface<InterfaceMode::Client>& interface, const Name& name, Implementation&& /*implementation*/)
+          : FunctionImplBase(interface, name)
+          {}
 
-        virtual ~FunctionImpl() noexcept override = default;
+          virtual ~FunctionImpl() noexcept override = default;
 
-        template <typename... Arguments>
-        ReturnType operator()(Arguments&&... arguments)
-        {
-          Buffer callData = DefaultMarshaller::SerializeFunctionCall<ParamTypes>(m_Interface, m_Name, std::forward<Arguments>(arguments)...);
+          template <typename... Arguments>
+          ReturnType operator()(Arguments&&... arguments)
+          {
+            Buffer callData = DefaultMarshaller::SerializeFunctionCall<ParamTypes>(m_Interface, m_Name, std::forward<Arguments>(arguments)...);
           
-          Buffer returnData = DelaufTransport<InterfaceMode::Client>().TransferCall(callData);
+            Buffer returnData = m_Interface.GetDispatcher().CallRemoteFunction(callData);
 
-          return DefaultMarshaller::DeserializeReturnValue<ReturnType>(returnData);
-        }
-    };
+            return DefaultMarshaller::DeserializeReturnValue<ReturnType>(returnData);
+          }
+      };
 
-    template <typename T>
-    class FunctionImpl<T, InterfaceMode::Server> : public FunctionImplBase<T>
+      template <typename T>
+      class FunctionImpl<T, InterfaceMode::Server> : public FunctionImplBase<T, InterfaceMode::Server>
+      {
+        public:
+          template <typename Implementation>
+          FunctionImpl(Interface<InterfaceMode::Server>& interface, const Name& name, Implementation&& implementation)
+          : FunctionImplBase(interface, name), m_Implementation(std::forward<Implementation>(implementation))
+          {
+            auto marshalledImplementation = [this] (const Buffer& paramData) -> Buffer
+              { 
+                return DefaultMarshaller::DeserializeAndExecuteFunctionCall<ReturnType, ParamTypes>(paramData, m_Implementation);
+              };
+
+            // register function
+            m_Interface.GetDispatcher().RegisterFunctionImplementation(m_Interface, m_Name, marshalledImplementation);
+          }
+
+          virtual ~FunctionImpl() noexcept override
+          {
+            try
+            {
+              m_Interface.GetDispatcher().DeregisterFunctionImplementation(m_Interface, m_Name);
+            }
+
+            catch (...)
+            {
+              // TODO: add trace / logging
+            }
+          }
+
+        private:
+          std::function<T> m_Implementation;
+      };
+
+    }  // namespace  Detail
+
+    template <typename T, InterfaceMode Mode>
+    class Function : public Detail::FunctionImpl<T, Mode>
     {
       public:
         template <typename Implementation>
-        FunctionImpl(Interface& interface, const Name& name, Implementation&& implementation)
-        : FunctionImplBase(interface, name), m_Implementation(std::forward<Implementation>(implementation))
-        {
-          auto marshalledImplementation = [this] (const Buffer& paramData) -> Buffer
-            { 
-              return DefaultMarshaller::DeserializeAndExecuteFunctionCall<ReturnType, ParamTypes>(paramData, m_Implementation);
-            };
-
-          // register function
-          m_Interface.GetDispatcher().RegisterFunctionImplementation(m_Interface, m_Name, marshalledImplementation);
-        }
-
-        virtual ~FunctionImpl() noexcept override
-        {
-          try
-          {
-            m_Interface.GetDispatcher().DeregisterFunctionImplementation(m_Interface, m_Name);
-          }
-
-          catch (...)
-          {
-            // TODO: add trace / logging
-          }
-        }
-
-      private:
-        std::function<T> m_Implementation;
-    };
-
-
-    template <typename T, InterfaceMode mode>
-    class Function : public FunctionImpl<T, mode>
-    {
-      public:
-        template <typename Implementation>
-        Function(Interface& interface, const Name& name, Implementation&& implementation)
+        Function(Interface<Mode>& interface, const Name& name, Implementation&& implementation)
         : FunctionImpl(interface, name, std::forward<Implementation>(implementation))
         {}
 
-        virtual ~Function() noexcept override = default;
+        virtual ~Function() noexcept override = default;        
     };
 
   }  // namespace V1

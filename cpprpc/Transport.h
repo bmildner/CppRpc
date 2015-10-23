@@ -3,7 +3,9 @@
 
 #pragma once
 
-#include <functional>
+#include <list>
+#include <mutex>
+#include <condition_variable>
 
 #include "cpprpc/Types.h"
 
@@ -11,47 +13,107 @@ namespace CppRpc
 {
   inline namespace V1
   {
-   
-    // TODO: curently this is not even a dummy transport layer for testing!
-         
-    template <InterfaceMode mode>
+            
+    template <InterfaceMode Mode>
     class Transport
     {
       public:
-        template <typename Callback>
-        explicit Transport(Callback&& callback)
-        : m_ServerCallback(std::forward<Callback>(callback))
-        {}
-
-        // TODO: remove
         Transport()
-        : Transport(nullptr)
         {}
-
-        Buffer TransferCall(const Buffer& callData)
-        {          
-          if (m_ServerCallback)
-          {
-            return m_ServerCallback(callData);
-          }
-          else
-          {
-            // TODO: must not happen ...
-            return Buffer();
-          }
-        }
 
         virtual ~Transport() = default;
 
-      private:
-        std::function<Buffer(const Buffer&)> m_ServerCallback;
+        virtual void Send(const Buffer& data) = 0;
+        virtual bool Receive(Buffer& data) = 0;
+
+      protected:
     };
 
-    template < InterfaceMode mode>
-    using DelaufTransport = Transport<mode>;
+
+    class LocalDummyTransport
+    {
+        template <InterfaceMode Mode>
+        class LocalDummyTransportImpl : public Transport<Mode>
+        {
+          public:
+            LocalDummyTransportImpl(LocalDummyTransport& parent)
+            : Transport(), m_Parent(parent)
+            {}
+
+            virtual void Send(const Buffer& data) override
+            {
+#pragma warning(suppress: 4127)  // conditional expression is constant
+              if (Mode == InterfaceMode::Client)
+              {
+                m_Parent.ClientSend(data);
+              }
+              else
+              {
+                m_Parent.ServerSend(data);
+              }
+            }
+
+            virtual bool Receive(Buffer& data) override
+            {
+#pragma warning(suppress: 4127)  // conditional expression is constant
+              if (Mode == InterfaceMode::Client)
+              {
+                return m_Parent.ClientReceive(data);
+              }
+              else
+              {
+                return m_Parent.ServerReceive(data);
+              }
+            }
+
+          private:
+            LocalDummyTransport& m_Parent;
+        };
+
+        using ClientImplementation = LocalDummyTransportImpl<InterfaceMode::Client>;
+        using ServerImplementation = LocalDummyTransportImpl<InterfaceMode::Server>;
+
+      public:
+        LocalDummyTransport();
+
+        ClientImplementation& GetClientTransport()
+        {
+          return m_Client;
+        }
+
+        ServerImplementation& GetServerTransport()
+        {
+          return m_Server;
+        }
+
+      protected:
+        static const unsigned Timeout = 500;  // in milliseconds
+
+        using Mutex = std::recursive_mutex;
+        using Lock = std::unique_lock<Mutex>;
+        using ConditionVariable = std::condition_variable_any;
+
+        using Queue = std::list<Buffer>;
+
+        Mutex m_Mutex;
+        ConditionVariable m_ClientToServerQueueCondVar;
+        ConditionVariable m_ServerToClientQueueCondVar;
+
+        Queue m_ClientToServerQueue;
+        Queue m_ServerToClientQueue;
+
+        ServerImplementation m_Server;
+        ClientImplementation m_Client;
+
+        void ClientSend(const Buffer& data);
+        bool ClientReceive(Buffer& data);
+
+        void ServerSend(const Buffer& data);
+        bool ServerReceive(Buffer& data);
+
+    };
 
   }  // namespace V1
 }  // namespace CppRpc
 
 #endif
-
