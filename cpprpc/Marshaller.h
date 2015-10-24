@@ -7,11 +7,11 @@
 #include <type_traits>
 #include <cassert>
 
-#pragma warning(push)
-#pragma warning(disable: 4100)  // boost/serialization/collections_load_imp.hpp(67): warning C4100: 'item_version': unreferenced formal parameter
 #include <boost/archive/text_oarchive.hpp>
 #include <boost/archive/text_iarchive.hpp>
 #include <boost/serialization/version.hpp>
+#pragma warning(push)
+#pragma warning(disable: 4100)  // boost/serialization/collections_load_imp.hpp(67): warning C4100: 'item_version': unreferenced formal parameter
 #include <boost/serialization/vector.hpp>
 #pragma warning(pop)
 
@@ -27,7 +27,7 @@
 
 
 BOOST_CLASS_VERSION(CppRpc::V1::Version, CppRpc::V1::LibraryVersion)
-BOOST_CLASS_VERSION(CppRpc::V1::Detail::FunctionDispatchHeader, CppRpc::V1::LibraryVersion)
+BOOST_CLASS_VERSION(CppRpc::V1::Detail::RemoteFunctionCall, CppRpc::V1::LibraryVersion)
 
 
 namespace CppRpc
@@ -38,7 +38,7 @@ namespace CppRpc
     {
 
       template<class Archive>
-      inline void serialize(Archive& ar, FunctionDispatchHeader& funcDispHeader, const unsigned int version)
+      inline void serialize(Archive& ar, RemoteFunctionCall& funcDispHeader, const unsigned int version)
       {
         if (version == LibraryVersionV1)
         {
@@ -49,7 +49,7 @@ namespace CppRpc
         }
         else
         {
-          throw Detail::ExceptionImpl<LibraryVersionMissmatch>("Version of class FunctionDispatchHeader not equal to LibraryVersionV1");
+          throw Detail::ExceptionImpl<LibraryVersionMissmatch>("Version of class RemoteFunctionCall not equal to expected library version");
         }
       }
 
@@ -65,12 +65,12 @@ namespace CppRpc
       }
       else
       {
-        throw Detail::ExceptionImpl<LibraryVersionMissmatch>("Version of class Version not equal to LibraryVersionV1");
+        throw Detail::ExceptionImpl<LibraryVersionMissmatch>("Version of class Version not equal to expected library version");
       }
     }
 
 
-    template <template <InterfaceMode> class Dispatcher = DefaultDispatcher>
+    template <template <InterfaceMode> class Dispatcher>
     class Marshaller
     {
       private:
@@ -83,12 +83,12 @@ namespace CppRpc
       public:
 
         template <typename ArgumentTypes, InterfaceMode Mode, typename... Arguments>
-        static Buffer SerializeFunctionCall(const Interface<Mode>& interface, const Name& functionName, Arguments&&... arguments);
+        static Buffer SerializeFunctionCall(const Interface<Mode, Dispatcher>& interface, const Name& functionName, Arguments&&... arguments);
 
         template <typename ReturnType>
         static ReturnType DeserializeReturnValue(const Buffer& buffer);
 
-        static Detail::FunctionDispatchHeader DeserializeFunctionDispatchHeader(const Buffer& data);
+        static Detail::RemoteFunctionCall DeserializeFunctionDispatchHeader(const Buffer& data);
 
         template <typename ReturnType, typename ArgumentTypes, typename Implementaion>
         static Buffer DeserializeAndExecuteFunctionCall(const Buffer& paramData, Implementaion& implementation);
@@ -161,6 +161,12 @@ namespace CppRpc
 
 
         template <typename T>
+        static T Deserialize(IArchive& archive)
+        {
+          return DeserializeHelper<T>::Deserialize(archive);
+        }
+
+        template <typename T>
         struct DeserializeHelper
         {
           static T Deserialize(IArchive& archive)
@@ -181,17 +187,11 @@ namespace CppRpc
           {}
         };
 
-        template <typename T>
-        static T Deserialize(IArchive& archive)
-        {
-          return DeserializeHelper<T>::Deserialize(archive);
-        }
-
-    };
+    };  // class Marshaller
 
     template <template <InterfaceMode> class Dispatcher>
     template <typename ArgumentTypes, InterfaceMode Mode, typename... Arguments>
-    Buffer Marshaller<Dispatcher>::SerializeFunctionCall(const Interface<Mode>& interface, const Name& functionName, Arguments&&... arguments)
+    Buffer Marshaller<Dispatcher>::SerializeFunctionCall(const Interface<Mode, Dispatcher>& interface, const Name& functionName, Arguments&&... arguments)
     {
       // check number of arguments (ArgumentTypes vs Arguments)
       static_assert(boost::mpl::size<ArgumentTypes>::value == sizeof...(arguments), "invalid number of arguments supplied");
@@ -213,8 +213,8 @@ namespace CppRpc
       {
         OArchive archive(stream);
 
-        // serialize dispatch header
-        Serialize(archive, Dispatcher<Mode>::FunctionDispatchHeader(interface, functionName, Buffer(str.data(), str.data() + str.size())));
+        // serialize function call
+        Serialize(archive, Dispatcher<Mode>::RemoteFunctionCall(interface, functionName, Buffer(str.data(), str.data() + str.size())));
       }
 
       str = stream.str();
@@ -232,12 +232,12 @@ namespace CppRpc
     }
 
     template <template <InterfaceMode> class Dispatcher>
-    Detail::FunctionDispatchHeader Marshaller<Dispatcher>::DeserializeFunctionDispatchHeader(const Buffer& data)
+    Detail::RemoteFunctionCall Marshaller<Dispatcher>::DeserializeFunctionDispatchHeader(const Buffer& data)
     {
       IStream stream(std::string(data.begin(), data.end()));
       IArchive archive(stream);
 
-      return Deserialize<Detail::FunctionDispatchHeader>(archive);
+      return Deserialize<Detail::RemoteFunctionCall>(archive);
     }
 
     template <template <InterfaceMode> class Dispatcher>
@@ -281,10 +281,11 @@ namespace CppRpc
     template <typename ArgumentTypes>
     void Marshaller<Dispatcher>::SerializeArguments(OArchive& /*archive*/)
     {
-      // all arguments must have been serialized; validate usage as recursion sentinal
-      static_assert(boost::mpl::size<ArgumentTypes>::value == 0, "");
+      static_assert(boost::mpl::size<ArgumentTypes>::value == 0, "Not all arguments have been serialized, this overload must only be called as a recursion sentinal!");
     }
-    using DefaultMarshaller = Marshaller<>;
+
+    template <template <InterfaceMode> class Dispatcher>
+    using DefaultMarshaller = Marshaller<Dispatcher>;
 
   }  // namespace V1
 }  // namespace CppRpc

@@ -17,17 +17,17 @@ namespace CppRpc
   inline namespace V1
   {
 
-    template <InterfaceMode Mode>
+    template <InterfaceMode Mode, template <InterfaceMode> class Dispatcher>
     class Interface;
 
     namespace Detail
     {
 
-      template <typename T, InterfaceMode Mode>
+      template <typename T, InterfaceMode Mode, template <InterfaceMode> class Dispatcher>
       class FunctionImplBase
       {
         public:
-          FunctionImplBase(Interface<Mode>& interface, const Name& name)
+          FunctionImplBase(Interface<Mode, Dispatcher>& interface, const Name& name)
           : m_Name(name), m_Interface(interface)
           {}
 
@@ -43,23 +43,24 @@ namespace CppRpc
           using ReturnType = typename boost::function_types::result_type<T>::type;
           using ParamTypes = typename boost::function_types::parameter_types<T>::type;
 
-          Name             m_Name;
-          Interface<Mode>& m_Interface;
+          Name                         m_Name;
+          Interface<Mode, Dispatcher>& m_Interface;
       };
 
 
-      template <typename T, InterfaceMode Mode>
-      class FunctionImpl : public FunctionImplBase<T, Mode>
+      template <typename T, InterfaceMode Mode, template <InterfaceMode> class Dispatcher>
+      class FunctionImpl : public FunctionImplBase<T, Mode, Dispatcher>
       {
         static_assert(true, "unknown interface mode");
       };
 
-      template <typename T>
-      class FunctionImpl<T, InterfaceMode::Client> : public FunctionImplBase<T, InterfaceMode::Client>
+      // function implementation for client mode
+      template <typename T, template <InterfaceMode> class Dispatcher>
+      class FunctionImpl<T, InterfaceMode::Client, Dispatcher> : public FunctionImplBase<T, InterfaceMode::Client, Dispatcher>
       {
         public:
           template <typename Implementation>
-          FunctionImpl(Interface<InterfaceMode::Client>& interface, const Name& name, Implementation&& /*implementation*/)
+          FunctionImpl(Interface<InterfaceMode::Client, Dispatcher>& interface, const Name& name, Implementation&& /*implementation*/)
           : FunctionImplBase(interface, name)
           {}
 
@@ -68,25 +69,28 @@ namespace CppRpc
           template <typename... Arguments>
           ReturnType operator()(Arguments&&... arguments)
           {
-            Buffer callData = DefaultMarshaller::SerializeFunctionCall<ParamTypes>(m_Interface, m_Name, std::forward<Arguments>(arguments)...);
+            // TODO: do not use default dipatcher ...
+            Buffer callData = DefaultMarshaller<Dispatcher>::SerializeFunctionCall<ParamTypes>(m_Interface, m_Name, std::forward<Arguments>(arguments)...);
           
             Buffer returnData = m_Interface.GetDispatcher().CallRemoteFunction(callData);
 
-            return DefaultMarshaller::DeserializeReturnValue<ReturnType>(returnData);
+            return DefaultMarshaller<Dispatcher>::DeserializeReturnValue<ReturnType>(returnData);
           }
       };
 
-      template <typename T>
-      class FunctionImpl<T, InterfaceMode::Server> : public FunctionImplBase<T, InterfaceMode::Server>
+      // function implementation for server mode
+      template <typename T, template <InterfaceMode> class Dispatcher>
+      class FunctionImpl<T, InterfaceMode::Server, Dispatcher> : public FunctionImplBase<T, InterfaceMode::Server, Dispatcher>
       {
         public:
           template <typename Implementation>
-          FunctionImpl(Interface<InterfaceMode::Server>& interface, const Name& name, Implementation&& implementation)
+          FunctionImpl(Interface<InterfaceMode::Server, Dispatcher>& interface, const Name& name, Implementation&& implementation)
           : FunctionImplBase(interface, name), m_Implementation(std::forward<Implementation>(implementation))
           {
             auto marshalledImplementation = [this] (const Buffer& paramData) -> Buffer
               { 
-                return DefaultMarshaller::DeserializeAndExecuteFunctionCall<ReturnType, ParamTypes>(paramData, m_Implementation);
+                // TODO: do not use default dipatcher ...
+                return DefaultMarshaller<Dispatcher>::DeserializeAndExecuteFunctionCall<ReturnType, ParamTypes>(paramData, m_Implementation);
               };
 
             // register function
@@ -112,12 +116,12 @@ namespace CppRpc
 
     }  // namespace  Detail
 
-    template <typename T, InterfaceMode Mode>
-    class Function : public Detail::FunctionImpl<T, Mode>
+    template <typename T, InterfaceMode Mode, template <InterfaceMode> class Dispatcher>
+    class Function : public Detail::FunctionImpl<T, Mode, Dispatcher>
     {
       public:
         template <typename Implementation>
-        Function(Interface<Mode>& interface, const Name& name, Implementation&& implementation)
+        Function(Interface<Mode, Dispatcher>& interface, const Name& name, Implementation&& implementation)
         : FunctionImpl(interface, name, std::forward<Implementation>(implementation))
         {}
 

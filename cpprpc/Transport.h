@@ -21,8 +21,9 @@ namespace CppRpc
         Transport()
         {}
 
-        virtual ~Transport() = default;
+        virtual ~Transport() noexcept = default;
 
+        // TODO: replace or add io-stream interface!
         virtual void Send(const Buffer& data) = 0;
         virtual bool Receive(Buffer& data) = 0;
 
@@ -87,7 +88,8 @@ namespace CppRpc
         }
 
       protected:
-        static const unsigned Timeout = 500;  // in milliseconds
+        // TODO: probably make timeout an parameter!?
+        static const unsigned Timeout = 250;  // in milliseconds
 
         using Mutex = std::recursive_mutex;
         using Lock = std::unique_lock<Mutex>;

@@ -12,6 +12,7 @@
 #include <condition_variable>
 
 #include <boost/format.hpp>
+#include <boost/noncopyable.hpp>
 
 #include "cpprpc/Types.h"
 #include "cpprpc/Transport.h"
@@ -20,26 +21,25 @@ namespace CppRpc
 {
   inline namespace V1
   {
-    template <InterfaceMode Mode>
+    template <InterfaceMode Mode, template <InterfaceMode> class Dispatcher>
     class Interface;
 
     namespace Detail
     {
       
-      // TODO: find better name!
-      struct FunctionDispatchHeader
+      struct RemoteFunctionCall
       {
-        FunctionDispatchHeader()
+        RemoteFunctionCall()
         {}
 
-        template <InterfaceMode Mode>
-        FunctionDispatchHeader(const Interface<Mode>& interface, const Name& functionName, const Buffer& paramData)
+        template <InterfaceMode Mode, template <InterfaceMode> class Dispatcher>
+        RemoteFunctionCall(const Interface<Mode, Dispatcher>& interface, const Name& functionName, const Buffer& paramData)
         : m_InterfaceName(interface.GetName()), m_InterfaceVersion(interface.GetVersion()), m_FunctionName(functionName), m_ParameterData(paramData)
         {
         }
 
-        FunctionDispatchHeader(FunctionDispatchHeader&&) = default;
-        FunctionDispatchHeader& operator=(FunctionDispatchHeader&&) = default;
+        RemoteFunctionCall(RemoteFunctionCall&&) = default;
+        RemoteFunctionCall& operator=(RemoteFunctionCall&&) = default;
 
         Name    m_InterfaceName;
         Version m_InterfaceVersion;
@@ -51,10 +51,10 @@ namespace CppRpc
 
     // TODO: probably seperate Client and Server implmentation like with class Function (using FunctionImpl)
     template <InterfaceMode Mode>
-    class Dispatcher
+    class Dispatcher : boost::noncopyable
     {
       public:
-        using FunctionDispatchHeader = Detail::FunctionDispatchHeader;
+        using RemoteFunctionCall = Detail::RemoteFunctionCall;
 
         using FunctionImplementation = std::function<Buffer(const Buffer&)>;
 
@@ -62,8 +62,8 @@ namespace CppRpc
 
         ~Dispatcher();
 
-        void RegisterFunctionImplementation(const Interface<Mode>& interface, const Name& name, FunctionImplementation implementation);
-        void DeregisterFunctionImplementation(const Interface<Mode>& interface, const Name& name);
+        void RegisterFunctionImplementation(const Interface<Mode, CppRpc::V1::Dispatcher>& interface, const Name& name, FunctionImplementation implementation);
+        void DeregisterFunctionImplementation(const Interface<Mode, CppRpc::V1::Dispatcher>& interface, const Name& name);
 
         Buffer CallRemoteFunction(const Buffer& callData);  // client side call into Transport
         Buffer DoFunctionCall(const Buffer& callData);  // server side call into function implementation
@@ -130,7 +130,7 @@ namespace CppRpc
     }
 
     template <InterfaceMode Mode>
-    void Dispatcher<Mode>::RegisterFunctionImplementation(const Interface<Mode>& interface, const Name& name, FunctionImplementation implementation)
+    void Dispatcher<Mode>::RegisterFunctionImplementation(const Interface<Mode, CppRpc::V1::Dispatcher>& interface, const Name& name, FunctionImplementation implementation)
     {
       InterfaceIdentity interfaceIdentity = {interface.GetName(), interface.GetVersion()};
 
@@ -148,7 +148,7 @@ namespace CppRpc
     }
 
     template <InterfaceMode Mode>
-    void Dispatcher<Mode>::DeregisterFunctionImplementation(const Interface<Mode>& interface, const Name& name)
+    void Dispatcher<Mode>::DeregisterFunctionImplementation(const Interface<Mode, CppRpc::V1::Dispatcher>& interface, const Name& name)
     {
       Lock lock(m_Mutex);
 
@@ -194,7 +194,7 @@ namespace CppRpc
     template <InterfaceMode Mode>
     Buffer Dispatcher<Mode>::DoFunctionCall(const Buffer& callData)
     {
-      Detail::FunctionDispatchHeader functionHeader = Marshaller<CppRpc::V1::Dispatcher>::DeserializeFunctionDispatchHeader(callData);
+      Detail::RemoteFunctionCall functionHeader = Marshaller<CppRpc::V1::Dispatcher>::DeserializeFunctionDispatchHeader(callData);
 
       FunctionImplementation functionImpl;
 
@@ -242,7 +242,7 @@ namespace CppRpc
       {        
         if (dispatcher->m_Transport.Receive(callData))  // non-blocking, timeout mandatory in Transport::Receive() !
         {
-          assert(callData.size() >= sizeof(Detail::FunctionDispatchHeader));
+          assert(callData.size() >= sizeof(Detail::RemoteFunctionCall));
 
           dispatcher->m_Transport.Send(dispatcher->DoFunctionCall(callData));
         }
@@ -256,8 +256,8 @@ namespace CppRpc
       }
     }
 
-    template <InterfaceMode Mode>
-    using DefaultDispatcher = Dispatcher<Mode>;
+//    template <InterfaceMode Mode>
+//    using DefaultDispatcher = Dispatcher<Mode>;
 
   }  // namespace V1
 }  // namespace CppRpc
