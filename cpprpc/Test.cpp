@@ -27,13 +27,13 @@ class Interface : public CppRpc::Interface<Mode>
     {}
 
     // setup callable functions
-    Interface::Function<void(void)>                     TestFunc1 = {*this, "TestFunc1", &Implementation::TestFunc1};
-    Interface::Function<int(void)>                      TestFunc2 = {*this, "TestFunc2", std::function<int(void)>(&Implementation::TestFunc2)};  // test std::function object
-    Interface::Function<int(int)>                       TestFunc3 = {*this, "TestFunc3", [] (int i) { return Implementation::TestFunc3(i); }};   // test lambda function
-    Interface::Function<bool(const std::string&)>       TestFunc4 = {*this, "TestFunc4", &Implementation::TestFunc4};
-    Interface::Function<bool(const std::string&, bool)> TestFunc5 = {*this, "TestFunc5", &Implementation::TestFunc5};
+    Function<void(void)>                     TestFunc1 = {*this, "TestFunc1", &Implementation::TestFunc1};
+    Function<int(void)>                      TestFunc2 = {*this, "TestFunc2", std::function<int(void)>(&Implementation::TestFunc2)};  // test std::function object
+    Function<int(int)>                       TestFunc3 = {*this, "TestFunc3", [] (int i) { return Implementation::TestFunc3(i); }};   // test lambda function
+    Function<bool(const std::string&)>       TestFunc4 = {*this, "TestFunc4", &Implementation::TestFunc4};
+    Function<bool(const std::string&, bool)> TestFunc5 = {*this, "TestFunc5", &Implementation::TestFunc5};
 
-    //Interface::Function<std::function<void(void)>, Mode> TestFuncBad = {*this, "TestFunc1", &Implementation::TestFunc1};  // must not compile (T must be a function type, static assert)
+    //Function<std::function<void(void)>> TestFuncBad = {*this, "TestFunc1", &Implementation::TestFunc1};  // must not compile (T must be a function type, static assert)
 };
 
 
