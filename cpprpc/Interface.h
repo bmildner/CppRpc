@@ -38,8 +38,9 @@ namespace CppRpc
         Dispatcher<Mode>& GetDispatcher() { return m_Dispatcher; }
         const Dispatcher<Mode>& GetDispatcher() const { return m_Dispatcher; }
 
+
         template <typename T>
-        using Function = CppRpc::V1::Function<T, Mode, Dispatcher>;
+        using Function = Detail::Function<T, Mode, Dispatcher>;
 
       private:
         Name             m_Name;

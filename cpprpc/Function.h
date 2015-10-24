@@ -112,22 +112,22 @@ namespace CppRpc
 
         private:
           std::function<T> m_Implementation;
+      };    
+
+
+      template <typename T, InterfaceMode Mode, template <InterfaceMode> class Dispatcher>
+      class Function : public Detail::FunctionImpl<T, Mode, Dispatcher>
+      {
+        public:
+          template <typename Implementation>
+          Function(Interface<Mode, Dispatcher>& interface, const Name& name, Implementation&& implementation)
+          : FunctionImpl(interface, name, std::forward<Implementation>(implementation))
+          {}
+
+          virtual ~Function() noexcept override = default;        
       };
 
     }  // namespace  Detail
-
-    template <typename T, InterfaceMode Mode, template <InterfaceMode> class Dispatcher>
-    class Function : public Detail::FunctionImpl<T, Mode, Dispatcher>
-    {
-      public:
-        template <typename Implementation>
-        Function(Interface<Mode, Dispatcher>& interface, const Name& name, Implementation&& implementation)
-        : FunctionImpl(interface, name, std::forward<Implementation>(implementation))
-        {}
-
-        virtual ~Function() noexcept override = default;        
-    };
-
   }  // namespace V1
 }  // namespace CppRpc
 

@@ -33,7 +33,7 @@ class Interface : public CppRpc::Interface<Mode>
     Interface::Function<bool(const std::string&)>       TestFunc4 = {*this, "TestFunc4", &Implementation::TestFunc4};
     Interface::Function<bool(const std::string&, bool)> TestFunc5 = {*this, "TestFunc5", &Implementation::TestFunc5};
 
-    Interface::Function<std::function<void(void)>, Mode> TestFuncBad = {*this, "TestFunc1", &Implementation::TestFunc1};  // must not compile (T must be a function type, static assert)
+    //Interface::Function<std::function<void(void)>, Mode> TestFuncBad = {*this, "TestFunc1", &Implementation::TestFunc1};  // must not compile (T must be a function type, static assert)
 };
 
 
