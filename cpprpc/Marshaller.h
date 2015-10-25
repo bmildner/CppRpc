@@ -154,7 +154,7 @@ namespace CppRpc
 
 
         template <typename T>
-        static void Serialize(OArchive& archive, T&& data)
+        static void Serialize(OArchive& archive, const T& data)
         {
           archive << data;
         }
@@ -175,7 +175,7 @@ namespace CppRpc
 
             archive >> t;
 
-            return std::move(t);
+            return t;
           }
         };
 
@@ -269,7 +269,7 @@ namespace CppRpc
       static_assert(std::is_convertible<Argument, ArgumentType>::value, "unable to convert supplied argument to expected argument type");
 
       // serialize argument
-      Serialize<ArgumentType>(archive, std::forward<Argument>(argument));
+      Serialize<ArgumentType>(archive, argument);
 
       // serialize remaining arguments using recursive call OR terminate recursion by calling sentinal overload
       SerializeArguments<boost::mpl::pop_front<ArgumentTypes>::type>(archive, std::forward<RemainingArguments>(remainingArguments)...);
