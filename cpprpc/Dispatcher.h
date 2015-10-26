@@ -10,6 +10,7 @@
 #include <thread>
 #include <mutex>
 #include <condition_variable>
+#include <memory>
 
 #include <boost/format.hpp>
 #include <boost/noncopyable.hpp>
@@ -87,7 +88,7 @@ namespace CppRpc
 
         Interfaces m_Interfaces;
 
-        Transport<Mode>& m_Transport;
+        Transport<Mode>& m_Transport;  // TODO: change to shared_ptr
 
 
         using Thread = std::thread;
@@ -100,7 +101,7 @@ namespace CppRpc
         bool m_StopServerThread;
 
         static void ServerThread(Dispatcher<Mode>* dispatcher);
-    };
+    };  // class Dispatcher
 
 
     template <InterfaceMode Mode>
@@ -254,6 +255,15 @@ namespace CppRpc
           return;
         }
       }
+    }
+
+    template <InterfaceMode Mode>
+    using DispatcherHandle = std::shared_ptr<Dispatcher<Mode>>;
+
+    template <template <InterfaceMode> class Transport>
+    DispatcherHandle<Transport::Mode> MakeDispatcherHandle(Transport& transport)
+    {
+      return std::make_shared<DispatcherHandle<Transport::Mode>::element_type>(transport);
     }
 
 //    template <InterfaceMode Mode>

@@ -6,6 +6,7 @@
 #include <string>
 #include <cstdint>
 #include <functional>
+#include <cassert>
 
 #include <boost/function_types/result_type.hpp>
 #include <boost/function_types/parameter_types.hpp>
@@ -22,21 +23,28 @@ namespace CppRpc
   inline namespace V1
   {
 
-    template <InterfaceMode Mode, template <InterfaceMode> class Dispatcher = Dispatcher>
+    template <InterfaceMode Mode, template <InterfaceMode> class Dispatcher = CppRpc::V1::Dispatcher>
     class Interface
     {
       public:
+        using DispatcherHandle = DispatcherHandle<Mode>;
+
         Interface(Transport<Mode>& transport, const Name& name, Version version = {1, 0})
-        : m_Name(name), m_Version(version), m_Dispatcher(transport)
+        : Interface(MakeDispatcherHandle(transport), name, version)
         {}        
+
+        Interface(const DispatcherHandle& dispatcher, const Name& name, Version version = {1, 0})
+        : m_Name(name), m_Version(version), m_Dispatcher(dispatcher)
+        {
+          assert(m_Dispatcher);
+        }
 
         virtual ~Interface() noexcept = default;
 
         const Name& GetName() const { return m_Name; }
         const Version& GetVersion() const { return m_Version; }
 
-        Dispatcher<Mode>& GetDispatcher() { return m_Dispatcher; }
-        const Dispatcher<Mode>& GetDispatcher() const { return m_Dispatcher; }
+        const DispatcherHandle& GetDispatcher() const { return m_Dispatcher; }
 
 
         template <typename T>
@@ -45,7 +53,7 @@ namespace CppRpc
       private:
         Name             m_Name;
         Version          m_Version;
-        Dispatcher<Mode> m_Dispatcher;  // TODO: use externally provided dispatcher!
+        DispatcherHandle m_Dispatcher;
     };
 
   }  // namespace V1

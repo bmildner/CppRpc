@@ -41,9 +41,6 @@
     <ClCompile Include="Test.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Dispatcher.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Transport.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>

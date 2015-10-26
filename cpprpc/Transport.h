@@ -23,9 +23,11 @@ namespace CppRpc
 
         virtual ~Transport() noexcept = default;
 
-        // TODO: replace or add io-stream interface!
+        // TODO: replace or add I/O stream interface!
         virtual void Send(const Buffer& data) = 0;
         virtual bool Receive(Buffer& data) = 0;
+
+        static const auto Mode = Mode;
 
       protected:
     };

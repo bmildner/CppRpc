@@ -72,7 +72,7 @@ namespace CppRpc
             // TODO: do not use default dipatcher ...
             Buffer callData = DefaultMarshaller<Dispatcher>::SerializeFunctionCall<ParamTypes>(m_Interface, m_Name, std::forward<Arguments>(arguments)...);
           
-            Buffer returnData = m_Interface.GetDispatcher().CallRemoteFunction(callData);
+            Buffer returnData = m_Interface.GetDispatcher()->CallRemoteFunction(callData);
 
             return DefaultMarshaller<Dispatcher>::DeserializeReturnValue<ReturnType>(returnData);
           }
@@ -94,14 +94,14 @@ namespace CppRpc
               };
 
             // register function
-            m_Interface.GetDispatcher().RegisterFunctionImplementation(m_Interface, m_Name, marshalledImplementation);
+            m_Interface.GetDispatcher()->RegisterFunctionImplementation(m_Interface, m_Name, marshalledImplementation);
           }
 
           virtual ~FunctionImpl() noexcept override
           {
             try
             {
-              m_Interface.GetDispatcher().DeregisterFunctionImplementation(m_Interface, m_Name);
+              m_Interface.GetDispatcher()->DeregisterFunctionImplementation(m_Interface, m_Name);
             }
 
             catch (...)

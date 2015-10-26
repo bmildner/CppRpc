@@ -54,9 +54,10 @@ template <typename Implementation, CppRpc::InterfaceMode Mode>
 class Interface : public CppRpc::Interface<Mode>
 {
   public:
-
-    Interface(CppRpc::Transport<Mode>& transport)
-    : CppRpc::Interface<Mode>(transport, Implementation::Name, {1, 1})
+    
+    template <typename Argument>
+    Interface(Argument&& argument)
+    : CppRpc::Interface<Mode>(std::forward<Argument>(argument), Implementation::Name, {1, 1})
     {}
 
     // setup callable functions
@@ -82,9 +83,11 @@ using TestClient = TestInterface<CppRpc::InterfaceMode::Client>;
 
 int main()
 {
-  CppRpc::LocalDummyTransport transport;
+  CppRpc::V1::LocalDummyTransport transport;
 
-  TestServer server(transport.GetServerTransport());
+  TestServer::DispatcherHandle serverDispatcher = CppRpc::V1::MakeDispatcherHandle(transport.GetServerTransport());
+
+  TestServer server(serverDispatcher);
 
   TestClient client(transport.GetClientTransport());
 

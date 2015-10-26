@@ -99,6 +99,8 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <MinimalRebuild>false</MinimalRebuild>
       <EnablePREfast>true</EnablePREfast>
+      <CompileAsManaged>false</CompileAsManaged>
+      <CompileAsWinRT>false</CompileAsWinRT>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -120,6 +122,8 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <MinimalRebuild>false</MinimalRebuild>
       <EnablePREfast>true</EnablePREfast>
+      <CompileAsManaged>false</CompileAsManaged>
+      <CompileAsWinRT>false</CompileAsWinRT>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -143,6 +147,8 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <ControlFlowGuard>Guard</ControlFlowGuard>
       <EnablePREfast>true</EnablePREfast>
+      <CompileAsManaged>false</CompileAsManaged>
+      <CompileAsWinRT>false</CompileAsWinRT>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -169,6 +175,8 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <ControlFlowGuard>Guard</ControlFlowGuard>
       <EnablePREfast>true</EnablePREfast>
+      <CompileAsManaged>false</CompileAsManaged>
+      <CompileAsWinRT>false</CompileAsWinRT>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -192,7 +200,6 @@
     <ClInclude Include="Types.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Dispatcher.cpp" />
     <ClCompile Include="Test.cpp" />
     <ClCompile Include="Transport.cpp" />
     <ClCompile Include="Types.cpp" />
