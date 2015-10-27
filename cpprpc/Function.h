@@ -4,12 +4,17 @@
 #pragma once
 
 #include <type_traits>
+#include <cassert>
 
 #include <boost/function_types/result_type.hpp>
 #include <boost/function_types/parameter_types.hpp>
+#include <boost/variant/get.hpp>
+#include <boost/format.hpp>
 
 #include "cpprpc/Types.h"
 #include "cpprpc/Dispatcher.h"
+#include "cpprpc/Exception.h"
+
 
 namespace CppRpc
 {
@@ -69,14 +74,56 @@ namespace CppRpc
           template <typename... Arguments>
           ReturnType operator()(Arguments&&... arguments)
           {
-            // TODO: do not use default dipatcher ...
+            // TODO: do not use default marshaller ...
+
+            // serialize function call
             Buffer callData = DefaultMarshaller<Dispatcher>::SerializeFunctionCall<ParamTypes>(m_Interface, m_Name, std::forward<Arguments>(arguments)...);
           
+            // do remote function call
             Buffer returnData = m_Interface.GetDispatcher()->CallRemoteFunction(callData);
 
-            return DefaultMarshaller<Dispatcher>::DeserializeReturnValue<ReturnType>(returnData);
+            // de-serialize result (return value or exception)
+            Detail::RemoteCallResult<ReturnType> result = DefaultMarshaller<Dispatcher>::DeserializeReturnValue<Detail::RemoteCallResult<ReturnType>>(returnData);
+
+            assert(!result.empty());
+
+            // check if exception data was returned instead of a return value
+            if (result.which() != 0)
+            {
+              const Detail::RemoteExceptionData& exceptionData = boost::get<Detail::RemoteExceptionData>(result);
+
+              // TODO: add handling for registred exception types
+              // throw de-serialize exception
+              throw Detail::ExceptionImpl<UnknowRemoteException>((boost::format("Exception type: \"%1%\", what: \"%2%\"") % exceptionData.m_Name % exceptionData.m_What).str());
+            }
+
+            // return result
+            return ReturnValueHelper<ReturnType>()(result);
           }
-      };
+
+        private:
+
+          // helper for void return type
+          template <typename ReturnValue>
+          struct ReturnValueHelper
+          {
+            template <typename RemoteCallResult>
+            ReturnValue operator()(RemoteCallResult& result)
+            {
+              return std::move(boost::get<ReturnValue>(result));
+            }
+          };
+
+          template <>
+          struct ReturnValueHelper<void>
+          {
+            template <typename RemoteCallResult>
+            void operator()(RemoteCallResult& /*result*/)
+            {
+            }
+          };
+
+      };  // class FunctionImpl<InterfaceMode::Client>
 
       // function implementation for server mode
       template <typename T, template <InterfaceMode> class Dispatcher>
@@ -115,6 +162,7 @@ namespace CppRpc
       };    
 
 
+      // TODO: explore possibility to add overloaded functions (new compound function class initialized with overloads?!?)
       template <typename T, InterfaceMode Mode, template <InterfaceMode> class Dispatcher>
       class Function : public Detail::FunctionImpl<T, Mode, Dispatcher>
       {

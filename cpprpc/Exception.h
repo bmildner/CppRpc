@@ -36,6 +36,8 @@ namespace CppRpc
     struct UnknownFunction          : LocalException {};
     struct UnknownInterfaceMode     : LocalException {};
 
+    struct UnknowRemoteException : RemoteException {};
+
     namespace Detail
     {
 

@@ -7,6 +7,13 @@
 #include <type_traits>
 #include <cassert>
 
+#include <boost/mpl/size.hpp>
+#include <boost/mpl/front.hpp>
+#include <boost/mpl/back.hpp>
+#include <boost/mpl/pop_front.hpp>
+#include <boost/mpl/pop_back.hpp>
+#include <boost/variant/variant.hpp>
+
 #include <boost/archive/text_oarchive.hpp>
 #include <boost/archive/text_iarchive.hpp>
 #include <boost/serialization/version.hpp>
@@ -14,20 +21,11 @@
 #pragma warning(disable: 4100)  // boost/serialization/collections_load_imp.hpp(67): warning C4100: 'item_version': unreferenced formal parameter
 #include <boost/serialization/vector.hpp>
 #pragma warning(pop)
-
-#include <boost/mpl/size.hpp>
-#include <boost/mpl/front.hpp>
-#include <boost/mpl/back.hpp>
-#include <boost/mpl/pop_front.hpp>
-#include <boost/mpl/pop_back.hpp>
+#include <boost/serialization/variant.hpp>
 
 #include "cpprpc/Types.h"
 #include "cpprpc/Dispatcher.h"
 #include "cpprpc/Exception.h"
-
-
-BOOST_CLASS_VERSION(CppRpc::V1::Version, CppRpc::V1::LibraryVersion)
-BOOST_CLASS_VERSION(CppRpc::V1::Detail::RemoteFunctionCall, CppRpc::V1::LibraryVersion)
 
 
 namespace CppRpc
@@ -53,6 +51,43 @@ namespace CppRpc
         }
       }
 
+
+      struct RemoteExceptionData
+      {
+        std::string m_Name;
+        std::string m_What;
+      };
+
+      template<class Archive>
+      inline void serialize(Archive& ar, RemoteExceptionData& exceptionData, const unsigned int version)
+      {
+        if (version == LibraryVersionV1)
+        {
+          ar & exceptionData.m_Name;
+          ar & exceptionData.m_What;
+        }
+        else
+        {
+          throw Detail::ExceptionImpl<LibraryVersionMissmatch>("Version of class RemoteExceptionData not equal to expected library version");
+        }
+      }
+
+
+      template <typename ReturnType>
+      struct RemoteCallResultHelper
+      {
+        using Type = boost::variant<ReturnType, RemoteExceptionData>;
+      };
+
+      template <>
+      struct RemoteCallResultHelper<void>
+      {
+        using Type = boost::variant<bool, RemoteExceptionData>;
+      };
+
+      template <typename ReturnType>
+      using RemoteCallResult = typename RemoteCallResultHelper<ReturnType>::Type;
+
     }  // namespace Detail
 
     template<class Archive>
@@ -70,6 +105,7 @@ namespace CppRpc
     }
 
 
+    // TODO: extract de-/serializer into (template) parameter
     template <template <InterfaceMode> class Dispatcher>
     class Marshaller
     {
@@ -103,13 +139,14 @@ namespace CppRpc
         static void SerializeArguments(OArchive& /*archive*/);
 
 
-        template <typename ReturnType, typename ArgumentTypes, std::size_t ArgumentCount = boost::mpl::size<ArgumentTypes>::value>
+        template <typename ReturnType, typename ArgumentTypes, 
+                  typename RemoteCallResult = Detail::RemoteCallResult<ReturnType>, std::size_t ArgumentCount = boost::mpl::size<ArgumentTypes>::value>
         struct FunctionCallHelper
         {
           static_assert(boost::mpl::size<ArgumentTypes>::value > 0, "");
 
           template <typename Implementaion, typename... Arguments>
-          static void Do(IArchive& iarchive, OArchive& oarchive, Implementaion& implementation, Arguments&&... arguments)
+          void operator()(IArchive& iarchive, OArchive& oarchive, Implementaion& implementation, Arguments&&... arguments)
           {
             using ParameterType = std::remove_reference_t<boost::mpl::front<ArgumentTypes>::type>;
 
@@ -117,41 +154,74 @@ namespace CppRpc
             ParameterType param = Deserialize<std::remove_const_t<ParameterType>>(iarchive);
 
             // deserialize remaining parameters OR do function call
-            FunctionCallHelper<ReturnType, boost::mpl::pop_front<ArgumentTypes>::type>::Do(iarchive, oarchive, implementation, std::forward<Arguments>(arguments)..., param);
+            FunctionCallHelper<ReturnType, boost::mpl::pop_front<ArgumentTypes>::type>()(iarchive, oarchive, implementation, std::forward<Arguments>(arguments)..., param);
           }
         };
 
         // spezialisation for ReturnType != void AND no more parameters
-        template <typename ReturnType, typename ArgumentTypes>
-        struct FunctionCallHelper<ReturnType, ArgumentTypes, 0>
+        template <typename ReturnType, typename ArgumentTypes, typename RemoteCallResult>
+        struct FunctionCallHelper<ReturnType, ArgumentTypes, RemoteCallResult, 0>
         {
           static_assert(boost::mpl::size<ArgumentTypes>::value == 0, "");
           static_assert(!std::is_void<ReturnType>::value, "");
 
           template <typename Implementaion, typename... Arguments>
-          static void Do(IArchive& /*archive*/, OArchive& oarchive, Implementaion& implementation, Arguments&&... arguments)
+          void operator()(IArchive& /*archive*/, OArchive& oarchive, Implementaion& implementation, Arguments&&... arguments)
           {
-            // TODO: add exception handling !
-            // call function implementation AND serialize result
-            Serialize<ReturnType>(oarchive, implementation(std::forward<Arguments>(arguments)...));
+            try
+            {
+              // TODO: try to seperate exception thrown by implementation (+ argument passing) and exception from serialization code?
+              // call function implementation AND serialize result (avoid named temporary instance of ReturnType!)
+              Serialize<RemoteCallResult>(oarchive, implementation(std::forward<Arguments>(arguments)...));
+            }
+            catch (...)
+            {              
+              HandleException<RemoteCallResult>(oarchive);
+            }            
           }
         };
 
         // spezialisation for ReturnType == void AND no more parameters
-        template <typename ArgumentTypes>
-        struct FunctionCallHelper<void, ArgumentTypes, 0>
+        template <typename ArgumentTypes, typename RemoteCallResult>
+        struct FunctionCallHelper<void, ArgumentTypes, RemoteCallResult, 0>
         {
           static_assert(boost::mpl::size<ArgumentTypes>::value == 0, "");
 
           template <typename Implementaion, typename... Arguments>
-          static void Do(IArchive& /*archive*/, OArchive& /*oarchive*/, Implementaion& implementation, Arguments&&... arguments)
+          void operator()(IArchive& /*archive*/, OArchive& oarchive, Implementaion& implementation, Arguments&&... arguments)
           {
-            // TODO: add exception handling !
             // call function implementation
-            implementation(std::forward<Arguments>(arguments)...);
+            try
+            {
+              implementation(std::forward<Arguments>(arguments)...);
+              Serialize<RemoteCallResult>(oarchive, RemoteCallResult());
+            }
+            catch (...)
+            {
+              HandleException<RemoteCallResult>(oarchive);              
+            }
           }
         };
 
+        template <typename RemoteCallResult>
+        static void HandleException(OArchive& oarchive)
+        {
+          try
+          {
+            throw;
+          }
+          
+          catch (const std::exception& e)
+          {
+            // TODO: add support for serialization of registred exception types
+            Serialize<RemoteCallResult>(oarchive, Detail::RemoteExceptionData({typeid(e).name(), e.what()}));
+          }
+
+          catch (...)
+          {
+            Serialize<RemoteCallResult>(oarchive, Detail::RemoteExceptionData({"Unknown exception type", ""}));
+          }
+        }
 
         template <typename T>
         static void Serialize(OArchive& archive, const T& data)
@@ -250,7 +320,7 @@ namespace CppRpc
       OStream ostream;
       OArchive oarchive(ostream);
 
-      FunctionCallHelper<ReturnType, ArgumentTypes>::Do(iarchive, oarchive, implementation);
+      FunctionCallHelper<ReturnType, ArgumentTypes>()(iarchive, oarchive, implementation);
 
       auto str = ostream.str();
       return Buffer(str.data(), str.data() + str.size());
@@ -289,5 +359,11 @@ namespace CppRpc
 
   }  // namespace V1
 }  // namespace CppRpc
+
+
+// macro BOOST_CLASS_VERSION is a bit quirky, does not work inside namespaces nor with forward declarations
+BOOST_CLASS_VERSION(CppRpc::V1::Version, CppRpc::V1::LibraryVersion)
+BOOST_CLASS_VERSION(CppRpc::V1::Detail::RemoteFunctionCall, CppRpc::V1::LibraryVersion)
+BOOST_CLASS_VERSION(CppRpc::V1::Detail::RemoteExceptionData, CppRpc::V1::LibraryVersion)
 
 #endif
