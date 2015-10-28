@@ -96,9 +96,9 @@ namespace CppRpc
               // throw de-serialize exception
               throw Detail::ExceptionImpl<UnknowRemoteException>((boost::format("Exception type: \"%1%\", what: \"%2%\"") % exceptionData.m_Name % exceptionData.m_What).str());
             }
-
+            
             // return result
-            return ReturnValueHelper<ReturnType>()(result);
+            return ReturnValueHelper<ReturnType>::Extract(result);
           }
 
         private:
@@ -108,7 +108,7 @@ namespace CppRpc
           struct ReturnValueHelper
           {
             template <typename RemoteCallResult>
-            ReturnValue operator()(RemoteCallResult& result)
+            static auto Extract(RemoteCallResult& result)
             {
               return std::move(boost::get<ReturnValue>(result));
             }
@@ -118,7 +118,7 @@ namespace CppRpc
           struct ReturnValueHelper<void>
           {
             template <typename RemoteCallResult>
-            void operator()(RemoteCallResult& /*result*/)
+            static void Extract(RemoteCallResult& /*result*/)
             {
             }
           };
